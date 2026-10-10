@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1410">
+<title>Burrow Watch</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:#1a1410; color:#e8dcc4; font-family:Georgia, serif; overflow-x:hidden; min-height:100vh; }
+  #village { position:relative; width:100%; height:38vh; min-height:280px; overflow:hidden; }
+  #village img { width:100%; height:100%; object-fit:cover; transition:opacity 2s; }
+  #village-night { position:absolute; top:0; left:0; opacity:0; }
+  #time-banner { position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(20,14,8,.75); padding:8px 20px; border-radius:20px; border:1px solid #8a6d3b; font-size:14px; letter-spacing:1px; }
+  #resources { display:flex; justify-content:center; gap:24px; padding:14px; background:#241b12; border-bottom:2px solid #8a6d3b; }
+  .res { text-align:center; }
+  .res .val { font-size:22px; font-weight:bold; color:#f5e6c8; }
+  .res .lbl { font-size:11px; color:#a89878; letter-spacing:1px; }
+  .res .rate { font-size:10px; color:#7a9a6a; }
+  #guardians { padding:16px 12px; }
+  #guardians h2, #posts h2, #upgrades h2 { font-size:16px; letter-spacing:2px; color:#c9a86a; margin-bottom:10px; text-align:center; }
+  .g-card { display:flex; background:#2a2116; border:1px solid #5a4a30; border-radius:10px; margin-bottom:10px; overflow:hidden; }
+  .g-card img { width:90px; height:90px; object-fit:cover; }
+  .g-info { flex:1; padding:10px 12px; }
+  .g-name { font-size:15px; font-weight:bold; color:#f5e6c8; }
+  .g-role { font-size:12px; color:#a89878; margin:2px 0; }
+  .g-level { font-size:11px; color:#7a9a6a; }
+  .g-assign { display:flex; gap:6px; margin-top:8px; }
+  .post-btn { flex:1; padding:6px 4px; font-size:11px; background:#3a2d1c; color:#e8dcc4; border:1px solid #5a4a30; border-radius:6px; cursor:pointer; font-family:Georgia, serif; }
+  .post-btn.active { background:#5a6a3a; border-color:#8aaa5a; }
+  .post-btn:disabled { opacity:.4; }
+  #posts { padding:6px 12px 16px; }
+  .post-row { display:flex; align-items:center; background:#241b12; border:1px solid #4a3d28; border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .post-icon { font-size:24px; margin-right:12px; }
+  .post-info { flex:1; }
+  .post-name { font-size:14px; font-weight:bold; }
+  .post-desc { font-size:11px; color:#a89878; }
+  .post-guardian { font-size:12px; color:#7aaa6a; }
+  #upgrades { padding:6px 12px 30px; }
+  .up-row { display:flex; align-items:center; background:#2a2116; border:1px solid #4a3d28; border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .up-info { flex:1; }
+  .up-name { font-size:14px; font-weight:bold; }
+  .up-desc { font-size:11px; color:#a89878; }
+  .up-btn { padding:8px 14px; background:#5a4a2a; color:#f5e6c8; border:1px solid #8a6d3b; border-radius:6px; cursor:pointer; font-family:Georgia, serif; font-size:12px; }
+  .up-btn:disabled { opacity:.4; }
+  #report-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,8,5,.92); z-index:100; overflow-y:auto; }
+  #report-box { max-width:500px; margin:40px auto; background:#2a2116; border:2px solid #8a6d3b; border-radius:12px; padding:24px; }
+  #report-box h2 { text-align:center; color:#c9a86a; letter-spacing:2px; margin-bottom:6px; }
+  #report-time { text-align:center; color:#a89878; font-size:13px; margin-bottom:16px; }
+  #report-events { max-height:50vh; overflow-y:auto; margin-bottom:16px; }
+  .rep-event { padding:8px 10px; border-bottom:1px solid #3a2d1c; font-size:13px; line-height:1.5; }
+  .rep-event.raid { border-left:3px solid #aa5a4a; }
+  .rep-event.gain { border-left:3px solid #7aaa6a; }
+  .rep-event.discover { border-left:3px solid #6a9aaa; }
+  #report-close { display:block; width:100%; padding:12px; background:#5a6a3a; color:#fff; border:none; border-radius:8px; font-size:15px; cursor:pointer; font-family:Georgia, serif; }
+  #version { text-align:center; font-size:10px; color:#5a4a30; padding:10px; }
+</style>
+</head>
+<body>
+<div id="village">
+  <img id="village-day" src="assets/village-day.webp" alt="Burrow village by day">
+  <img id="village-night" src="assets/village-night.webp" alt="Burrow village by night">
+  <div id="time-banner">☀️ <span id="clock">--:--</span></div>
+</div>
+<div id="resources">
+  <div class="res"><div class="val" id="r-food">0</div><div class="lbl">🍖 FOOD</div><div class="rate" id="r-food-rate"></div></div>
+  <div class="res"><div class="val" id="r-timber">0</div><div class="lbl">🪵 TIMBER</div><div class="rate" id="r-timber-rate"></div></div>
+  <div class="res"><div class="val" id="r-renown">0</div><div class="lbl">🏵️ RENOWN</div><div class="rate" id="r-renown-rate"></div></div>
+</div>
+<div id="guardians">
+  <h2>— GUARDIANS —</h2>
+  <div id="g-list"></div>
+</div>
+<div id="posts">
+  <h2>— POSTS —</h2>
+  <div id="p-list"></div>
+</div>
+<div id="upgrades">
+  <h2>— BURROW —</h2>
+  <div id="u-list"></div>
+</div>
+<div id="report-modal">
+  <div id="report-box">
+    <h2>WHILE YOU WERE AWAY</h2>
+    <div id="report-time"></div>
+    <div id="report-events"></div>
+    <button id="report-close">Return to the Burrow</button>
+  </div>
+</div>
+<div id="version">v1</div>
+<script>
+const PAGE_VERSION = 'v1';
+// ===== GAME STATE =====
+const GUARDIANS = {
+  badger: { name:'Bram', species:'Badger', role:'DEFENSE', icon:'🦡', img:'assets/guardian-badger.webp', desc:'Stalwart defender. Repels night raids.' },
+  fox:    { name:'Vex',  species:'Fox',    role:'SCOUT',   icon:'🦊', img:'assets/guardian-fox.webp',    desc:'Keen-eyed scout. Discovers caches, warns of raids.' },
+  owl:    { name:'Hoot', species:'Owl',    role:'FORAGE',  icon:'🦉', img:'assets/guardian-owl.webp',    desc:'Night forager. Gathers food and timber.' },
+};
+const POSTS = {
+  gate:   { name:'Burrow Gate', icon:'🛡️', desc:'First line of defense against night raids.' },
+  forest: { name:'Deep Forest', icon:'🌲', desc:'Rich foraging grounds. Best by day.' },
+  ridge:  { name:'High Ridge',  icon:'🔭', desc:'Overlook. Scouts spot trouble early.' },
+};
+let S = null;
+function defaultState(){
+  return {
+    v:1, food:20, timber:10, renown:0,
+    guardians:{ badger:{level:1, post:'gate'}, fox:{level:1, post:'ridge'}, owl:{level:1, post:'forest'} },
+    burrowLevel:1, lastSeen:Date.now(), totalHours:0,
+  };
+}
+function save(){ S.lastSeen=Date.now(); localStorage.setItem('burrowwatch', JSON.stringify(S)); }
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem('burrowwatch')); if(d&&d.v===1){S=d;return;} }catch(e){}
+  S=defaultState();
+}
+// ===== TIME =====
+function isNight(){
+  const h=new Date().getHours(); return h<6||h>=18;
+}
+function fmtClock(){
+  const d=new Date(); let h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
+  const ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+m+' '+ap;
+}
+// ===== OFFLINE PROGRESS =====
+function simulateHours(hours){
+  const events=[]; const ticks=Math.min(Math.floor(hours*4), 96); // 15-min ticks, cap 24h
+  for(let t=0;t<ticks;t++){
+    // Simulate a "representative" hour offset for day/night
+    const simHour=(new Date(S.lastSeen + t*15*60000)).getHours();
+    const night=simHour<6||simHour>=18;
+    const g=S.guardians;
+    // Forage (owl)
+    if(g.owl.post==='forest'){
+      const amt=Math.round((night?2:4)*g.owl.level*(1+S.burrowLevel*0.1));
+      S.food+=amt;
+      if(Math.random()<0.3) events.push({t:'gain', text:`🦉 Hoot gathered ${amt} food from the forest.`});
+    }
+    // Timber (owl can also gather timber, or passive)
+    if(Math.random()<0.4){
+      const amt=Math.round(2*g.owl.level);
+      S.timber+=amt;
+    }
+    // Scout (fox)
+    if(g.fox.post==='ridge'){
+      if(Math.random()<0.15){
+        const cache=Math.round(10+Math.random()*20*g.fox.level);
+        S.timber+=cache;
+        events.push({t:'discover', text:`🦊 Vex discovered an abandoned cache: +${cache} timber!`});
+      }
+      if(Math.random()<0.1){
+        const r=Math.round(2+g.fox.level);
+        S.renown+=r;
+        events.push({t:'discover', text:`🦊 Vex mapped a new trail. +${r} renown.`});
+      }
+    }
+    // Raids (night)
+    if(night && Math.random()<0.25){
+      const raidStr=Math.round(5+Math.random()*10);
+      const def=g.badger.post==='gate' ? g.badger.level*8*(1+S.burrowLevel*0.15) : 2;
+      const scoutBonus=g.fox.post==='ridge' ? 0.5 : 0;
+      if(def*(1+scoutBonus) >= raidStr){
+        const r=Math.round(3+Math.random()*4);
+        S.renown+=r;
+        events.push({t:'raid', text:`🌙 Night raid repelled by Bram! +${r} renown.`});
+      } else {
+        const lost=Math.min(S.food, Math.round(raidStr-def));
+        S.food-=lost;
+        events.push({t:'raid', text:`🌙 Raid broke through! Lost ${lost} food.`});
+      }
+    }
+    // Upkeep
+    S.food=Math.max(0,S.food-1);
+  }
+  S.totalHours+=hours;
+  return events;
+}
+// ===== RENDER =====
+function render(){
+  document.getElementById('r-food').textContent=Math.floor(S.food);
+  document.getElementById('r-timber').textContent=Math.floor(S.timber);
+  document.getElementById('r-renown').textContent=Math.floor(S.renown);
+  document.getElementById('clock').textContent=fmtClock();
+  const night=isNight();
+  document.getElementById('village-night').style.opacity=night?1:0;
+  document.getElementById('time-banner').innerHTML=(night?'🌙 ':'☀️ ')+'<span id="clock">'+fmtClock()+'</span>';
+  // Guardians
+  const gl=document.getElementById('g-list'); gl.innerHTML='';
+  for(const [id,g] of Object.entries(GUARDIANS)){
+    const st=S.guardians[id];
+    const div=document.createElement('div'); div.className='g-card';
+    div.innerHTML=`<img src="${g.img}"><div class="g-info"><div class="g-name">${g.icon} ${g.name} <span style="font-weight:normal;color:#a89878">the ${g.species}</span></div><div class="g-role">${g.role} — ${g.desc}</div><div class="g-level">Level ${st.level}</div><div class="g-assign">${Object.keys(POSTS).map(p=>`<button class="post-btn ${st.post===p?'active':''}" data-g="${id}" data-p="${p}">${POSTS[p].icon} ${POSTS[p].name}</button>`).join('')}</div></div>`;
+    gl.appendChild(div);
+  }
+  gl.querySelectorAll('.post-btn').forEach(b=>b.addEventListener('click',()=>{
+    S.guardians[b.dataset.g].post=b.dataset.p; save(); render();
+  }));
+  // Posts
+  const pl=document.getElementById('p-list'); pl.innerHTML='';
+  for(const [pid,p] of Object.entries(POSTS)){
+    const assigned=Object.entries(S.guardians).find(([gid,st])=>st.post===pid);
+    const div=document.createElement('div'); div.className='post-row';
+    div.innerHTML=`<div class="post-icon">${p.icon}</div><div class="post-info"><div class="post-name">${p.name}</div><div class="post-desc">${p.desc}</div><div class="post-guardian">${assigned?GUARDIANS[assigned[0]].icon+' '+GUARDIANS[assigned[0]].name+' on duty':'⚠️ Unmanned'}</div></div>`;
+    pl.appendChild(div);
+  }
+  // Upgrades
+  const ul=document.getElementById('u-list'); ul.innerHTML='';
+  const burrowCost=Math.round(50*Math.pow(2,S.burrowLevel-1));
+  const bdiv=document.createElement('div'); bdiv.className='up-row';
+  bdiv.innerHTML=`<div class="up-info"><div class="up-name">🏠 Burrow Level ${S.burrowLevel}</div><div class="up-desc">+10% yields, stronger defense per level.</div></div><button class="up-btn" id="up-burrow" ${S.timber<burrowCost?'disabled':''}>${burrowCost} 🪵</button>`;
+  ul.appendChild(bdiv);
+  document.getElementById('up-burrow').addEventListener('click',()=>{
+    if(S.timber>=burrowCost){S.timber-=burrowCost;S.burrowLevel++;save();render();}
+  });
+  for(const [id,g] of Object.entries(GUARDIANS)){
+    const st=S.guardians[id];
+    const cost=Math.round(30*Math.pow(1.8,st.level-1));
+    const div=document.createElement('div'); div.className='up-row';
+    div.innerHTML=`<div class="up-info"><div class="up-name">${g.icon} Train ${g.name} <span style="color:#7a9a6a">Lv${st.level}</span></div><div class="up-desc">Stronger at their post.</div></div><button class="up-btn" data-train="${id}" ${S.food<cost?'disabled':''}>${cost} 🍖</button>`;
+    ul.appendChild(div);
+  }
+  ul.querySelectorAll('[data-train]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.train; const cost=Math.round(30*Math.pow(1.8,S.guardians[id].level-1));
+    if(S.food>=cost){S.food-=cost;S.guardians[id].level++;save();render();}
+  }));
+}
+// ===== INIT =====
+load();
+const awayMs=Date.now()-S.lastSeen;
+const awayHours=awayMs/3600000;
+let reportEvents=[];
+if(awayHours>0.05 && S.totalHours>0){ // returning player, was away >3 min
+  reportEvents=simulateHours(awayHours);
+  save();
+} else if(S.totalHours===0){
+  S.totalHours=0.01; save(); // first visit
+}
+render();
+if(reportEvents.length>0){
+  const hrs=Math.floor(awayHours), mins=Math.round((awayHours-hrs)*60);
+  document.getElementById('report-time').textContent=`Away for ${hrs}h ${mins}m`;
+  const el=document.getElementById('report-events'); el.innerHTML='';
+  // Show max 30 events
+  reportEvents.slice(-30).forEach(e=>{
+    const d=document.createElement('div'); d.className='rep-event '+e.t; d.textContent=e.text; el.appendChild(d);
+  });
+  document.getElementById('report-modal').style.display='block';
+}
+document.getElementById('report-close').addEventListener('click',()=>{
+  document.getElementById('report-modal').style.display='none';
+});
+// Live tick every 30s
+setInterval(()=>{ const ev=simulateHours(0.008); save(); render(); }, 30000);
+// Save on unload
+window.addEventListener('beforeunload', save);
+// Register SW
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+</script>
+</body>
+</html>
